@@ -17,6 +17,7 @@ import {
 import {
   getCommonPoliciesForArea,
   getEvidenceForCommonPolicy,
+  getPartyPosition,
   parties,
   policyAreas,
 } from "@/lib/data";
@@ -53,32 +54,44 @@ function scoreParty(
   policies: CommonPolicy[],
   partySlug: string,
 ) {
+  let comparableCount = 0;
   const totalDistance = policyAnswers.reduce((sum, answer) => {
     const policy = policies.find((item) => item.id === answer.policyId);
-    const partyValue = policy?.partyStances[partySlug] ?? 3;
+    const position = policy
+      ? getPartyPosition(partySlug, policy.id)
+      : undefined;
 
-    return sum + Math.abs(answer.value - partyValue);
+    if (!position) {
+      return sum;
+    }
+
+    comparableCount += 1;
+
+    return sum + Math.abs(answer.value - position.supportLevel);
   }, 0);
-  const maxDistance = Math.max(policyAnswers.length * 4, 1);
+  const maxDistance = Math.max(comparableCount * 4, 1);
 
-  return Math.round((1 - totalDistance / maxDistance) * 100);
+  return {
+    comparableCount,
+    match: comparableCount
+      ? Math.round((1 - totalDistance / maxDistance) * 100)
+      : 0,
+  };
 }
 
-function ScoreBars({ label, value }: { label: string; value: number }) {
+function ScoreBars({ label, value }: { label: string; value?: number }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-bold text-slate-500">
         <span>{label}</span>
-        <span>
-          {value} - {answerLabels[value]}
-        </span>
+        <span>{value ? `${value} - ${answerLabels[value]}` : "Няма позиция"}</span>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
         {[1, 2, 3, 4, 5].map((level) => (
           <span
             key={level}
             className={`h-3 rounded-full ${
-              level <= value ? scoreColors[value] : "bg-slate-100"
+              value && level <= value ? scoreColors[value] : "bg-white"
             }`}
           />
         ))}
@@ -90,10 +103,12 @@ function ScoreBars({ label, value }: { label: string; value: number }) {
 function ResultPartyCard({
   party,
   match,
+  comparableCount,
   answeredPolicies,
 }: {
   party: Party;
   match: number;
+  comparableCount: number;
   answeredPolicies: { policyId: string; value: number }[];
 }) {
   return (
@@ -104,7 +119,9 @@ function ResultPartyCard({
             <PartyMark party={party} />
             <div>
               <CardTitle className={party.accentClass}>{party.name}</CardTitle>
-              <CardDescription>{match}% съвпадение</CardDescription>
+              <CardDescription>
+                {match}% съвпадение по {comparableCount} позиции
+              </CardDescription>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:items-end">
@@ -130,7 +147,7 @@ function ResultPartyCard({
             return null;
           }
 
-          const partyAnswer = policy.partyStances[party.slug] ?? 3;
+          const position = getPartyPosition(party.slug, policy.id);
           const evidence = getEvidenceForCommonPolicy(party.slug, policy.id);
 
           return (
@@ -143,14 +160,39 @@ function ResultPartyCard({
                   <h3 className="font-bold">{policy.title}</h3>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     Ти: {answer.value} ({answerLabels[answer.value]}) /{" "}
-                    {party.shortName}: {partyAnswer} (
-                    {answerLabels[partyAnswer]})
+                    {party.shortName}:{" "}
+                    {position
+                      ? `${position.supportLevel} (${
+                          answerLabels[position.supportLevel]
+                        })`
+                      : "няма намерена позиция"}
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <ScoreBars label="Твоят отговор" value={answer.value} />
-                  <ScoreBars label={party.shortName} value={partyAnswer} />
+                  <ScoreBars
+                    label={party.shortName}
+                    value={position?.supportLevel}
+                  />
                 </div>
+                {position ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <h4 className="text-sm font-bold">Защо е така?</h4>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {position.reasoning}
+                    </p>
+                    {position.source ? (
+                      <a
+                        href={position.source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex text-sm font-semibold text-cyan-800 hover:text-cyan-950"
+                      >
+                        {position.source.label}
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               {evidence ? (
                 <Button asChild variant="secondary" size="sm" className="mt-4">
@@ -212,7 +254,7 @@ export function QuizExperience() {
     return parties
       .map((party) => ({
         party,
-        match: scoreParty(answeredPolicies, allCommonPolicies, party.slug),
+        ...scoreParty(answeredPolicies, allCommonPolicies, party.slug),
       }))
       .sort((first, second) => second.match - first.match);
   }, [answeredPolicies]);
@@ -412,11 +454,12 @@ export function QuizExperience() {
               Направи теста отново
             </Button>
           </div>
-          {ranking.map(({ party, match }) => (
+          {ranking.map(({ party, match, comparableCount }) => (
             <ResultPartyCard
               key={party.slug}
               party={party}
               match={match}
+              comparableCount={comparableCount}
               answeredPolicies={answeredPolicies}
             />
           ))}

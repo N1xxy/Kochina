@@ -9,21 +9,17 @@ import {
   FileSearch,
 } from "lucide-react";
 
+import { HashOpenDetails } from "@/components/hash-open-details";
 import { PartyMark } from "@/components/party-mark";
 import { SiteHeader } from "@/components/site-header";
 import { SupportMeter } from "@/components/support-meter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   getCommonPoliciesForArea,
   getEvidenceForCommonPolicy,
+  getPartyPosition,
   getParty,
   parties,
   policyAreas,
@@ -47,6 +43,7 @@ export default async function PartyPage({
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
+      <HashOpenDetails />
       <SiteHeader />
 
       <section className="border-b border-slate-200 bg-white">
@@ -137,39 +134,96 @@ export default async function PartyPage({
                 <div className="border-t border-slate-100 p-5 pt-0">
                   <div className="grid gap-4">
                     {positions.map((position) => {
-                      const stance = position.partyStances[party.slug] ?? 3;
                       const item = getEvidenceForCommonPolicy(
                         party.slug,
                         position.id,
                       );
+                      const partyPosition = getPartyPosition(
+                        party.slug,
+                        position.id,
+                      );
+                      const detailsId =
+                        item?.id ?? `${party.slug}-${position.id}`;
 
                       return (
-                        <Card
+                        <details
                           key={position.id}
-                          id={item?.id}
-                          className="scroll-mt-24"
+                          id={detailsId}
+                          className="group/policy scroll-mt-24 rounded-lg border border-slate-200 bg-white shadow-sm"
                         >
-                          <CardHeader>
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5">
+                            <div>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="neutral">Позиция</Badge>
+                                {item ? <Badge>Има проверка</Badge> : null}
+                              </div>
+                              <h3 className="mt-3 text-xl font-bold">
+                                {position.title}
+                              </h3>
+                            </div>
+                            <ChevronDown
+                              className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open/policy:rotate-180"
+                              aria-hidden="true"
+                            />
+                          </summary>
+                          <div className="border-t border-slate-100 p-5 pt-0">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                               <div>
-                                <CardTitle className="text-xl">
-                                  {position.title}
-                                </CardTitle>
-                                <CardDescription>
+                                <h4 className="font-bold">Обща позиция</h4>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
                                   {position.question}
-                                </CardDescription>
+                                </p>
                               </div>
                               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <div className="mb-2 text-xs font-bold uppercase text-slate-500">
                                   Позиция на партията
                                 </div>
-                                <SupportMeter value={stance} />
+                                {partyPosition ? (
+                                  <SupportMeter
+                                    value={partyPosition.supportLevel}
+                                  />
+                                ) : (
+                                  <div className="h-2.5 w-36 rounded-full bg-white ring-1 ring-slate-200" />
+                                )}
                               </div>
                             </div>
-                          </CardHeader>
-                          <CardContent>
+
+                            {partyPosition ? (
+                              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <h4 className="font-bold">Защо е така?</h4>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                  {partyPosition.reasoning}
+                                </p>
+                                {partyPosition.source ? (
+                                  <a
+                                    href={partyPosition.source.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-800 hover:text-cyan-950"
+                                  >
+                                    {partyPosition.source.label}
+                                    <ExternalLink
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  </a>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+                                <h4 className="font-bold">
+                                  Няма намерена позиция
+                                </h4>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                  За тази партия още няма въведена ясна позиция
+                                  по тази тема. В теста тя няма да участва в
+                                  изчисляването на съвпадението.
+                                </p>
+                              </div>
+                            )}
+
                             {item ? (
-                              <div className="rounded-lg border border-cyan-100 bg-cyan-50/40 p-4">
+                              <div className="mt-4 rounded-lg border border-cyan-100 bg-cyan-50/40 p-4">
                                 <Badge className="mb-4">Проверена политика</Badge>
                                 <div className="grid gap-4 lg:grid-cols-2">
                                   <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -180,21 +234,29 @@ export default async function PartyPage({
                                       />
                                       Твърдение
                                     </div>
-                                    <p className="text-sm leading-6 text-slate-600">
-                                      {item.claim}
-                                    </p>
-                                    <a
-                                      href={item.claimSource.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-800 hover:text-cyan-950"
-                                    >
-                                      {item.claimSource.label}
-                                      <ExternalLink
-                                        className="h-3.5 w-3.5"
-                                        aria-hidden="true"
-                                      />
-                                    </a>
+                                    <div className="grid gap-3">
+                                      {item.claims.map((claim, claimIndex) => (
+                                        <div
+                                          key={`${item.id}-claim-${claimIndex}`}
+                                        >
+                                          <p className="text-sm leading-6 text-slate-600">
+                                            {claim.text}
+                                          </p>
+                                          <a
+                                            href={claim.source.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-800 hover:text-cyan-950"
+                                          >
+                                            {claim.source.label}
+                                            <ExternalLink
+                                              className="h-3.5 w-3.5"
+                                              aria-hidden="true"
+                                            />
+                                          </a>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                   <div className="rounded-lg border border-slate-200 bg-white p-4">
                                     <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900">
@@ -204,27 +266,36 @@ export default async function PartyPage({
                                       />
                                       Намерено действие
                                     </div>
-                                    <p className="text-sm leading-6 text-slate-600">
-                                      {item.action}
-                                    </p>
-                                    {item.actionSource ? (
-                                      <a
-                                        href={item.actionSource.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-800 hover:text-cyan-950"
-                                      >
-                                        {item.actionSource.label}
-                                        <ExternalLink
-                                          className="h-3.5 w-3.5"
-                                          aria-hidden="true"
-                                        />
-                                      </a>
-                                    ) : (
-                                      <p className="mt-3 text-sm font-semibold text-amber-700">
-                                        Все още няма добавен източник за действие.
-                                      </p>
-                                    )}
+                                    <div className="grid gap-3">
+                                      {item.actions.map((action, actionIndex) => (
+                                        <div
+                                          key={`${item.id}-action-${actionIndex}`}
+                                        >
+                                          <p className="text-sm leading-6 text-slate-600">
+                                            {action.text}
+                                          </p>
+                                          {action.source ? (
+                                            <a
+                                              href={action.source.url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-800 hover:text-cyan-950"
+                                            >
+                                              {action.source.label}
+                                              <ExternalLink
+                                                className="h-3.5 w-3.5"
+                                                aria-hidden="true"
+                                              />
+                                            </a>
+                                          ) : (
+                                            <p className="mt-2 text-sm font-semibold text-amber-700">
+                                              Все още няма добавен източник за
+                                              действие.
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -240,8 +311,8 @@ export default async function PartyPage({
                                 </p>
                               </div>
                             )}
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </details>
                       );
                     })}
                   </div>
