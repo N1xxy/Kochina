@@ -1,4 +1,4 @@
-import { Party } from "@/lib/data";
+import type { Party } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export function PartyMark({

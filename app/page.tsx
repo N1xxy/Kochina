@@ -19,9 +19,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { commonPolicies, parties, policyAreas, policyEvidence } from "@/lib/data";
+import { getAppData } from "@/lib/app-data";
 
-export default function Home() {
+export default async function Home() {
+  const { commonPolicies, parties, policyAreas, policyEvidence } =
+    await getAppData();
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <SiteHeader />

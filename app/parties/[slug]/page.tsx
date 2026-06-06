@@ -17,12 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  getAppData,
   getCommonPoliciesForArea,
   getEvidenceForCommonPolicy,
   getPartyPosition,
   getParty,
-  parties,
-  policyAreas,
+} from "@/lib/app-data";
+import {
   type PolicyEvidence,
 } from "@/lib/data";
 
@@ -44,8 +45,10 @@ const comparisonSignals: Record<
   },
 };
 
-export function generateStaticParams() {
-  return parties.map((party) => ({ slug: party.slug }));
+export async function generateStaticParams() {
+  const data = await getAppData();
+
+  return data.parties.map((party) => ({ slug: party.slug }));
 }
 
 export default async function PartyPage({
@@ -54,7 +57,8 @@ export default async function PartyPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const party = getParty(slug);
+  const data = await getAppData();
+  const party = getParty(data, slug);
 
   if (!party) {
     notFound();
@@ -116,10 +120,10 @@ export default async function PartyPage({
         </Card>
 
         <div className="grid gap-4">
-          {policyAreas.map((area, index) => {
-            const positions = getCommonPoliciesForArea(area.slug);
+          {data.policyAreas.map((area, index) => {
+            const positions = getCommonPoliciesForArea(data, area.slug);
             const checkedCount = positions.filter((position) =>
-              getEvidenceForCommonPolicy(party.slug, position.id),
+              getEvidenceForCommonPolicy(data, party.slug, position.id),
             ).length;
 
             return (
@@ -154,10 +158,12 @@ export default async function PartyPage({
                   <div className="grid gap-4">
                     {positions.map((position) => {
                       const item = getEvidenceForCommonPolicy(
+                        data,
                         party.slug,
                         position.id,
                       );
                       const partyPosition = getPartyPosition(
+                        data,
                         party.slug,
                         position.id,
                       );

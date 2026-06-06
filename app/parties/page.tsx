@@ -13,13 +13,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  commonPolicies,
+  getAppData,
   getEvidenceForParty,
-  parties,
-  policyAreas,
-} from "@/lib/data";
+} from "@/lib/app-data";
 
-export default function PartiesPage() {
+export default async function PartiesPage() {
+  const data = await getAppData();
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <SiteHeader />
@@ -39,8 +39,8 @@ export default function PartiesPage() {
       </section>
 
       <section className="mx-auto grid max-w-7xl gap-4 px-5 py-8 sm:px-8 md:grid-cols-2">
-        {parties.map((party) => {
-          const evidenceCount = getEvidenceForParty(party.slug).length;
+        {data.parties.map((party) => {
+          const evidenceCount = getEvidenceForParty(data, party.slug).length;
 
           return (
             <Card key={party.slug} className={party.ringClass}>
@@ -61,13 +61,13 @@ export default function PartiesPage() {
               <CardContent className="pt-5">
                 <div className="mb-5 grid grid-cols-3 gap-3">
                   <div className="rounded-lg bg-slate-50 p-4">
-                    <div className="text-xl font-bold">{policyAreas.length}</div>
+                    <div className="text-xl font-bold">{data.policyAreas.length}</div>
                     <div className="text-sm font-medium text-slate-500">
                       сфери
                     </div>
                   </div>
                   <div className="rounded-lg bg-slate-50 p-4">
-                    <div className="text-xl font-bold">{commonPolicies.length}</div>
+                    <div className="text-xl font-bold">{data.commonPolicies.length}</div>
                     <div className="text-sm font-medium text-slate-500">
                       позиции
                     </div>

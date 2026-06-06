@@ -12,8 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getAppData } from "@/lib/app-data";
 
-export default function QuizPage() {
+export default async function QuizPage() {
+  const data = await getAppData();
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <SiteHeader />
@@ -53,7 +56,7 @@ export default function QuizPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 pb-8 sm:px-8">
-        <QuizExperience />
+        <QuizExperience data={data} />
       </section>
     </main>
   );

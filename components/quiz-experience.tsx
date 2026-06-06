@@ -14,13 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getCommonPoliciesForArea,
-  getEvidenceForCommonPolicy,
-  getPartyPosition,
-  parties,
-  policyAreas,
-} from "@/lib/data";
+import type { AppData } from "@/lib/app-data";
 import type { CommonPolicy, Party } from "@/lib/data";
 
 const answerLabels: Record<number, string> = {
@@ -49,7 +43,35 @@ function getAnsweredPolicies(answers: Answers) {
     .map(([policyId, value]) => ({ policyId, value: value as number }));
 }
 
+function getCommonPoliciesForArea(data: AppData, areaSlug: string) {
+  return data.commonPolicies.filter((policy) => policy.areaSlug === areaSlug);
+}
+
+function getEvidenceForCommonPolicy(
+  data: AppData,
+  partySlug: string,
+  commonPolicyId: string,
+) {
+  return data.policyEvidence.find(
+    (item) =>
+      item.partySlug === partySlug && item.commonPolicyId === commonPolicyId,
+  );
+}
+
+function getPartyPosition(
+  data: AppData,
+  partySlug: string,
+  commonPolicyId: string,
+) {
+  return data.partyPositions.find(
+    (position) =>
+      position.partySlug === partySlug &&
+      position.commonPolicyId === commonPolicyId,
+  );
+}
+
 function scoreParty(
+  data: AppData,
   policyAnswers: { policyId: string; value: number }[],
   policies: CommonPolicy[],
   partySlug: string,
@@ -58,7 +80,7 @@ function scoreParty(
   const totalDistance = policyAnswers.reduce((sum, answer) => {
     const policy = policies.find((item) => item.id === answer.policyId);
     const position = policy
-      ? getPartyPosition(partySlug, policy.id)
+      ? getPartyPosition(data, partySlug, policy.id)
       : undefined;
 
     if (!position) {
@@ -101,11 +123,13 @@ function ScoreBars({ label, value }: { label: string; value?: number }) {
 }
 
 function ResultPartyCard({
+  data,
   party,
   match,
   comparableCount,
   answeredPolicies,
 }: {
+  data: AppData;
   party: Party;
   match: number;
   comparableCount: number;
@@ -139,7 +163,7 @@ function ResultPartyCard({
       </CardHeader>
       <CardContent className="grid gap-3">
         {answeredPolicies.map((answer) => {
-          const policy = allCommonPolicies.find(
+          const policy = data.commonPolicies.find(
             (item) => item.id === answer.policyId,
           );
 
@@ -147,8 +171,12 @@ function ResultPartyCard({
             return null;
           }
 
-          const position = getPartyPosition(party.slug, policy.id);
-          const evidence = getEvidenceForCommonPolicy(party.slug, policy.id);
+          const position = getPartyPosition(data, party.slug, policy.id);
+          const evidence = getEvidenceForCommonPolicy(
+            data,
+            party.slug,
+            policy.id,
+          );
 
           return (
             <div
@@ -213,7 +241,7 @@ function ResultPartyCard({
   );
 }
 
-export function QuizExperience() {
+export function QuizExperience({ data }: { data: AppData }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [showResults, setShowResults] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
@@ -251,13 +279,13 @@ export function QuizExperience() {
   }, [answers]);
 
   const ranking = useMemo(() => {
-    return parties
+    return data.parties
       .map((party) => ({
         party,
-        ...scoreParty(answeredPolicies, allCommonPolicies, party.slug),
+        ...scoreParty(data, answeredPolicies, data.commonPolicies, party.slug),
       }))
       .sort((first, second) => second.match - first.match);
-  }, [answeredPolicies]);
+  }, [answeredPolicies, data]);
 
   function setAnswer(policyId: string, value: number) {
     setAnswers((current) => ({ ...current, [policyId]: value }));
@@ -316,8 +344,8 @@ export function QuizExperience() {
       </Card>
 
       <div className="grid gap-4">
-        {policyAreas.map((area) => {
-          const policies = getCommonPoliciesForArea(area.slug);
+        {data.policyAreas.map((area) => {
+          const policies = getCommonPoliciesForArea(data, area.slug);
 
           return (
             <details
@@ -457,6 +485,7 @@ export function QuizExperience() {
           {ranking.map(({ party, match, comparableCount }) => (
             <ResultPartyCard
               key={party.slug}
+              data={data}
               party={party}
               match={match}
               comparableCount={comparableCount}
@@ -469,6 +498,3 @@ export function QuizExperience() {
   );
 }
 
-const allCommonPolicies = policyAreas.flatMap((area) =>
-  getCommonPoliciesForArea(area.slug),
-);
