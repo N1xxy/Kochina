@@ -1,13 +1,9 @@
-import Link from "next/link";
-import { ArrowRight, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 import { QuizExperience } from "@/components/quiz-experience";
 import { SiteHeader } from "@/components/site-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -39,7 +35,9 @@ export default async function QuizPage() {
             <BarChart3 className="h-7 w-7 text-cyan-700" aria-hidden="true" />
             <CardTitle>Как се смята резултатът</CardTitle>
             <CardDescription>
-              Сравняваме твоите отговори с възгледите на всяка партия. Колкото повече въпроси отговориш, толкова по-точен ще е резултатът.
+              Сравняваме твоите отговори с позициите на всяка партия, като
+              темите, които отбележиш като важни, имат по-голяма тежест.
+              Въпросите без въведена партийна позиция не участват в сравнението.
             </CardDescription>
           </CardHeader>
           

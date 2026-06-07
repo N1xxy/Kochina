@@ -25,3 +25,13 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+p,
+h1,
+h2,
+h3,
+h4,
+a,
+button {
+  overflow-wrap: anywhere;
+}

@@ -13,7 +13,7 @@ import {
   type PolicyArea,
   type PolicyEvidence,
 } from "@/lib/data";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 
 export type AppData = {
   policyAreas: PolicyArea[];
@@ -341,6 +341,8 @@ function mapSupabaseRows({
 }
 
 export const getAppData = cache(async (): Promise<AppData> => {
+  const supabase = createClient();
+
   if (!supabase) {
     return mockData;
   }

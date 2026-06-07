@@ -56,7 +56,7 @@ export default async function PartiesPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-5">
-                <div className="mb-5 grid grid-cols-3 gap-3">
+                <div className="mb-5 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-lg bg-slate-50 p-4">
                     <div className="text-xl font-bold">{data.policyAreas.length}</div>
                     <div className="text-sm font-medium text-slate-500">

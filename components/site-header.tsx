@@ -1,8 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 
-import { Button } from "@/components/ui/button";
-
 const navItems = [
   { label: "Начало", href: "/" },
   { label: "Партии", href: "/parties" },
@@ -14,13 +12,13 @@ export function SiteHeader() {
     <header className="sticky top-0 z-20 border-b border-cyan-900/10 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8 md:py-5">
         <Link className="flex items-center gap-3 md:gap-4" href="/">
-          <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-sm md:h-16 md:w-16 md:p-1.5">
+          <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:h-16 md:w-16">
             <Image
               src="/kochina-raccoon-logo.png"
               alt="Лого на Кочина"
-              width={64}
-              height={64}
-              className="h-10 w-10 object-contain md:h-14 md:w-14"
+              fill
+              sizes="(min-width: 768px) 64px, 44px"
+              className="object-contain p-1 md:p-1.5"
               priority
             />
           </span>
@@ -43,9 +41,6 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <Button asChild size="sm" className="md:hidden">
-          <Link href="/parties">Към партиите</Link>
-        </Button>
       </div>
     </header>
   );

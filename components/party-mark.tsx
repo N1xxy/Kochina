@@ -11,7 +11,7 @@ export function PartyMark({
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br font-bold text-white shadow-sm",
+        "flex shrink-0 items-center justify-center rounded-lg bg-linear-to-br font-bold text-white shadow-sm",
         party.gradientClass,
         size === "sm" && "h-10 w-10 text-sm",
         size === "md" && "h-14 w-14 text-lg",

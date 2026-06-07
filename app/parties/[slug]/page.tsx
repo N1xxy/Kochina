@@ -14,7 +14,6 @@ import { PartyMark } from "@/components/party-mark";
 import { SiteHeader } from "@/components/site-header";
 import { SupportMeter } from "@/components/support-meter";
 import { getTopicPalette } from "@/components/topic-colors";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -85,7 +84,7 @@ export default async function PartyPage({
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <HashOpenDetails />
       <SiteHeader />
-      <div className="sticky top-18.25 z-10 border-b border-slate-200 bg-slate-50/90 backdrop-blur">
+      <div className="border-b border-slate-200 bg-slate-50/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <PartyMark party={party} />
@@ -174,20 +173,11 @@ export default async function PartyPage({
                 key={area.slug}
                 className={`group rounded-lg border shadow-sm ${topicPalette.border} ${topicPalette.surface}`}
               >
-                <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg p-5 transition-colors group-open:rounded-b-none ${topicPalette.header}`}>
+                <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg p-5 transition-colors marker:hidden [&::-webkit-details-marker]:hidden ${topicPalette.header}`}>
                   <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex w-fit items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${topicPalette.badge}`}
-                      >
-                        {area.name}
-                      </span>
-                      <Badge variant="neutral">
-                        {positions.length} позиции
-                      </Badge>
-                      <Badge variant="neutral">
-                        {checkedCount} провер{checkedCount === 1 ? "ка" : "ки"}
-                      </Badge>
+                    <div className="text-xs font-bold uppercase text-slate-500">
+                      {positions.length} позиции · {checkedCount} провер
+                      {checkedCount === 1 ? "ка" : "ки"}
                     </div>
                     <h2 className="mt-3 text-xl font-bold">{area.name}</h2>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
@@ -218,7 +208,6 @@ export default async function PartyPage({
                       const signal = item
                         ? comparisonSignals[item.comparisonSignal]
                         : undefined;
-                      const isConclusive = hasConclusiveEvidence(item);
 
                       return (
                         <details
@@ -226,21 +215,14 @@ export default async function PartyPage({
                           id={detailsId}
                           className="group/policy scroll-mt-24 rounded-lg border border-slate-200 bg-white shadow-sm"
                         >
-                          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5">
-                            <div>
-                              <div className="flex flex-wrap gap-2">
-                                
-                                {item ? (
-                                  <Badge
-                                    variant={
-                                      isConclusive ? "default" : "neutral"
-                                    }
-                                  >
-                                    {signal?.evidenceLabel}
-                                  </Badge>
-                                ) : null}
-                              </div>
-                              <h3 className="mt-3 text-xl font-bold">
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 marker:hidden [&::-webkit-details-marker]:hidden">
+                            <div className="min-w-0">
+                              {item ? (
+                                <div className="text-xs font-bold uppercase text-slate-500">
+                                  {signal?.evidenceLabel}
+                                </div>
+                              ) : null}
+                              <h3 className="mt-2 wrap-break-word text-xl font-bold">
                                 {position.title}
                               </h3>
                             </div>
@@ -308,9 +290,6 @@ export default async function PartyPage({
                             {item ? (
                               <div className="mt-4 rounded-lg border border-cyan-100 bg-cyan-50/40 p-4">
                                 <div className="mb-4 flex flex-wrap gap-2">
-                                  {isConclusive ? (
-                                    <Badge>{signal?.evidenceLabel}</Badge>
-                                  ) : null}
                                   <span
                                     className={`inline-flex w-fit items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${
                                       signal?.className

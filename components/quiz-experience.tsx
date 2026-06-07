@@ -1,22 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, RotateCcw, Trophy, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  RotateCcw,
+  Trophy,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PartyMark } from "@/components/party-mark";
 import { getTopicPalette } from "@/components/topic-colors";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AppData } from "@/lib/app-data";
 import type { CommonPolicy, Party } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
 const answerLabels: Record<number, string> = {
   1: "Не подкрепям",
@@ -26,37 +28,99 @@ const answerLabels: Record<number, string> = {
   5: "Подкрепям",
 };
 
-const scoreColors: Record<number, string> = {
-  1: "bg-red-800",
-  2: "bg-red-300",
-  3: "bg-slate-300",
-  4: "bg-sky-300",
-  5: "bg-blue-700",
+const answerDescriptions: Record<number, string> = {
+  1: "Категорично против",
+  2: "По-скоро против",
+  3: "Неутрално или смесено",
+  4: "По-скоро подкрепям",
+  5: "Пълна подкрепа",
+};
+
+const answerTones: Record<
+  number,
+  {
+    icon: string;
+    selected: string;
+    unselected: string;
+    bar: string;
+  }
+> = {
+  1: {
+    icon: "text-red-700",
+    selected: "border-red-700 bg-red-50 text-red-950",
+    unselected:
+      "border-red-100 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50/60",
+    bar: "bg-red-700",
+  },
+  2: {
+    icon: "text-orange-600",
+    selected: "border-orange-600 bg-orange-50 text-orange-950",
+    unselected:
+      "border-orange-100 bg-white text-slate-700 hover:border-orange-300 hover:bg-orange-50/60",
+    bar: "bg-orange-500",
+  },
+  3: {
+    icon: "text-slate-600",
+    selected: "border-slate-600 bg-slate-100 text-slate-950",
+    unselected:
+      "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50",
+    bar: "bg-slate-500",
+  },
+  4: {
+    icon: "text-sky-700",
+    selected: "border-sky-700 bg-sky-50 text-sky-950",
+    unselected:
+      "border-sky-100 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50/60",
+    bar: "bg-sky-500",
+  },
+  5: {
+    icon: "text-emerald-700",
+    selected: "border-emerald-700 bg-emerald-50 text-emerald-950",
+    unselected:
+      "border-emerald-100 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/60",
+    bar: "bg-emerald-600",
+  },
 };
 
 type Answers = Record<string, number | undefined>;
+type ImportanceAnswers = Record<string, boolean | undefined>;
+
+type SavedQuizState = {
+  answers?: Answers;
+  importance?: Record<string, boolean | number | undefined>;
+  submitted?: boolean;
+};
+
+type QuizQuestion = CommonPolicy & {
+  areaName: string;
+  areaDescription: string;
+};
+
+type AnsweredPolicy = {
+  policyId: string;
+  value: number;
+  isImportant: boolean;
+};
 
 const STORAGE_KEY = "kochina-quiz-answers";
+const DEFAULT_IMPORTANCE_WEIGHT = 1;
+const IMPORTANT_TOPIC_WEIGHT = 1.75;
 
-function getAnsweredPolicies(answers: Answers) {
+function getImportanceWeight(isImportant: boolean) {
+  return isImportant ? IMPORTANT_TOPIC_WEIGHT : DEFAULT_IMPORTANCE_WEIGHT;
+}
+
+function getAnsweredPolicies(
+  answers: Answers,
+  importance: ImportanceAnswers,
+): AnsweredPolicy[] {
   return Object.entries(answers)
     .filter(([, value]) => typeof value === "number")
-    .map(([policyId, value]) => ({ policyId, value: value as number }));
-}
-
-function getCommonPoliciesForArea(data: AppData, areaSlug: string) {
-  return data.commonPolicies.filter((policy) => policy.areaSlug === areaSlug);
-}
-
-function getEvidenceForCommonPolicy(
-  data: AppData,
-  partySlug: string,
-  commonPolicyId: string,
-) {
-  return data.policyEvidence.find(
-    (item) =>
-      item.partySlug === partySlug && item.commonPolicyId === commonPolicyId,
-  );
+    .map(([policyId, value]) => ({
+      policyId,
+      value: value as number,
+      isImportant: importance[policyId] ?? false,
+    }));
 }
 
 function getPartyPosition(
@@ -73,11 +137,16 @@ function getPartyPosition(
 
 function scoreParty(
   data: AppData,
-  policyAnswers: { policyId: string; value: number }[],
+  policyAnswers: AnsweredPolicy[],
   policies: CommonPolicy[],
   partySlug: string,
 ) {
   let comparableCount = 0;
+  let comparableWeight = 0;
+  const answeredWeight = policyAnswers.reduce(
+    (sum, answer) => sum + getImportanceWeight(answer.isImportant),
+    0,
+  );
   const totalDistance = policyAnswers.reduce((sum, answer) => {
     const policy = policies.find((item) => item.id === answer.policyId);
     const position = policy
@@ -89,33 +158,134 @@ function scoreParty(
     }
 
     comparableCount += 1;
+    const weight = getImportanceWeight(answer.isImportant);
+    comparableWeight += weight;
 
-    return sum + Math.abs(answer.value - position.supportLevel);
+    return sum + weight * Math.abs(answer.value - position.supportLevel);
   }, 0);
-  const maxDistance = Math.max(comparableCount * 4, 1);
+  const maxDistance = Math.max(comparableWeight * 4, 1);
+  const coverage = answeredWeight ? comparableWeight / answeredWeight : 0;
+  const coveragePenalty = 0.7 + coverage * 0.3;
+  const rawMatch = comparableCount
+    ? (1 - totalDistance / maxDistance) * 100
+    : 0;
 
   return {
     comparableCount,
-    match: comparableCount
-      ? Math.round((1 - totalDistance / maxDistance) * 100)
-      : 0,
+    match: comparableCount ? Math.round(rawMatch * coveragePenalty) : 0,
   };
 }
 
-function ScoreBars({ label, value }: { label: string; value?: number }) {
+function getQuestions(data: AppData): QuizQuestion[] {
+  return data.policyAreas.flatMap((area) =>
+    data.commonPolicies
+      .filter((policy) => policy.areaSlug === area.slug)
+      .map((policy) => ({
+        ...policy,
+        areaName: area.name,
+        areaDescription: area.description,
+      })),
+  );
+}
+
+function ProgressDots({
+  questions,
+  answers,
+  currentIndex,
+  onSelect,
+}: {
+  questions: QuizQuestion[];
+  answers: Answers;
+  currentIndex: number;
+  onSelect: (index: number) => void;
+}) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-bold text-slate-500">
-        <span>{label}</span>
+    <div className="flex flex-wrap gap-1.5" aria-label="Прогрес в теста">
+      {questions.map((question, index) => {
+        const hasAnswer = typeof answers[question.id] === "number";
+
+        return (
+          <button
+            key={question.id}
+            type="button"
+            onClick={() => onSelect(index)}
+            className={cn(
+              "h-2.5 w-2.5 rounded-full transition-colors",
+              index === currentIndex && "ring-2 ring-cyan-700 ring-offset-2",
+              hasAnswer ? "bg-cyan-700" : "bg-slate-300",
+            )}
+            aria-label={`Въпрос ${index + 1}${
+              hasAnswer ? ", отговорен" : ", пропуснат"
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function AnswerButton({
+  value,
+  selectedValue,
+  onSelect,
+}: {
+  value: number;
+  selectedValue?: number;
+  onSelect: (value: number) => void;
+}) {
+  const isSelected = selectedValue === value;
+  const tone = answerTones[value];
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={cn(
+        "flex min-h-20 flex-col items-start justify-center rounded-lg border p-4 text-left transition-colors",
+        isSelected ? tone.selected : tone.unselected,
+      )}
+    >
+      <span className="flex items-center gap-2 text-sm font-bold">
+        {isSelected ? (
+          <CheckCircle2
+            className={cn("h-4 w-4", tone.icon)}
+            aria-hidden="true"
+          />
+        ) : (
+          <Circle className={cn("h-4 w-4", tone.icon)} aria-hidden="true" />
+        )}
+        {value}. {answerLabels[value]}
+      </span>
+      <span className="mt-1 text-xs font-medium text-slate-500">
+        {answerDescriptions[value]}
+      </span>
+    </button>
+  );
+}
+
+function ScoreBars({
+  label,
+  value,
+}: {
+  label: string;
+  value?: number;
+}) {
+  const tone = value ? answerTones[value] : undefined;
+
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500">
+        <span className="uppercase">{label}</span>
         <span>{value ? `${value} - ${answerLabels[value]}` : "Няма позиция"}</span>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
-        {[1, 2, 3, 4, 5].map((level) => (
+        {Array.from({ length: 5 }).map((_, index) => (
           <span
-            key={level}
-            className={`h-3 rounded-full ${
-              value && level <= value ? scoreColors[value] : "bg-white"
-            }`}
+            key={index}
+            className={cn(
+              "h-3 rounded-full",
+              value && index < value ? tone?.bar : "bg-slate-200",
+            )}
           />
         ))}
       </div>
@@ -134,34 +304,53 @@ function ResultPartyCard({
   party: Party;
   match: number;
   comparableCount: number;
-  answeredPolicies: { policyId: string; value: number }[];
+  answeredPolicies: AnsweredPolicy[];
 }) {
   return (
     <details
-      className={`group rounded-lg border bg-white shadow-sm ${party.ringClass}`}
+      className={cn(
+        "group overflow-hidden rounded-lg border bg-white shadow-sm",
+        party.ringClass,
+      )}
     >
       <summary
-        className={`${party.softClass} flex cursor-pointer list-none flex-col gap-4 rounded-lg p-5 transition-colors group-open:rounded-b-none sm:flex-row sm:items-center sm:justify-between`}
+        className={cn(
+          "flex cursor-pointer list-none flex-col gap-4 p-5 marker:hidden sm:flex-row sm:items-center sm:justify-between [&::-webkit-details-marker]:hidden",
+          party.softClass,
+        )}
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <PartyMark party={party} />
-          <div className="min-w-0">
-            <h3 className={`truncate text-xl font-bold ${party.accentClass}`}>
-              {party.name}
-            </h3>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              {match}% съвпадение по {comparableCount} позиции
-            </p>
+        <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <PartyMark party={party} />
+            <div className="min-w-0">
+              <h3
+                className={cn(
+                  "wrap-break-word text-xl font-bold",
+                  party.accentClass,
+                )}
+              >
+                {party.name}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {comparableCount} сравнени позиции
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col gap-3 sm:w-56 sm:items-end">
-          <div className="h-3 w-full rounded-full bg-white ring-1 ring-slate-200">
-            <div
-              className="h-3 rounded-full bg-cyan-600"
-              style={{ width: `${match}%` }}
-            />
+          <div className="grid min-w-0 gap-2 sm:min-w-56">
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs font-bold uppercase text-slate-500">
+                <span>Съвпадение</span>
+                <span>{match}%</span>
+              </div>
+              <div className="h-3 rounded-full bg-white ring-1 ring-slate-200">
+                <div
+                  className="h-3 rounded-full bg-cyan-600"
+                  style={{ width: `${match}%` }}
+                />
+              </div>
+            </div>
           </div>
-          <span className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 transition-colors group-open:bg-slate-50">
+          <span className="inline-flex w-fit items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition-colors group-open:bg-slate-50">
             Виж отговорите
             <ChevronDown
               className="h-4 w-4 transition-transform group-open:rotate-180"
@@ -170,84 +359,47 @@ function ResultPartyCard({
           </span>
         </div>
       </summary>
-      <div className="grid gap-3 border-t border-slate-100 p-5">
+      <div className="grid gap-4 border-t border-slate-100 p-5">
         <Button asChild variant="secondary" size="sm" className="w-fit">
           <Link href={`/parties/${party.slug}`}>Пълен профил</Link>
         </Button>
-        {answeredPolicies.map((answer) => {
-          const policy = data.commonPolicies.find(
-            (item) => item.id === answer.policyId,
-          );
+        <div className="grid gap-3">
+          {answeredPolicies.map((answer) => {
+            const policy = data.commonPolicies.find(
+              (item) => item.id === answer.policyId,
+            );
+            const position = policy
+              ? getPartyPosition(data, party.slug, policy.id)
+              : undefined;
 
-          if (!policy) {
-            return null;
-          }
+            if (!policy) {
+              return null;
+            }
 
-          const position = getPartyPosition(data, party.slug, policy.id);
-          const evidence = getEvidenceForCommonPolicy(
-            data,
-            party.slug,
-            policy.id,
-          );
-
-          return (
-            <div
-              key={policy.id}
-              className="rounded-lg border border-slate-200 bg-white p-4"
-            >
-              <div className="flex flex-col gap-4">
-                <div>
-                  <h3 className="font-bold">{policy.title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Ти: {answer.value} ({answerLabels[answer.value]}) /{" "}
-                    {party.shortName}:{" "}
-                    {position
-                      ? `${position.supportLevel} (${
-                          answerLabels[position.supportLevel]
-                        })`
-                      : "няма намерена позиция"}
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ScoreBars label="Твоят отговор" value={answer.value} />
+            return (
+              <div
+                key={policy.id}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+              >
+                <h3 className="wrap-break-word text-sm font-bold">
+                  {policy.title}
+                </h3>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <ScoreBars label="Ти" value={answer.value} />
                   <ScoreBars
                     label={party.shortName}
                     value={position?.supportLevel}
                   />
                 </div>
-                {position ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <h4 className="text-sm font-bold">Защо е така?</h4>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {position.reasoning}
-                    </p>
-                    {position.source ? (
-                      <a
-                        href={position.source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex text-sm font-semibold text-cyan-800 hover:text-cyan-950"
-                      >
-                        {position.source.label}
-                      </a>
-                    ) : null}
-                  </div>
+                {answer.isImportant ? (
+                  <p className="mt-1 text-xs font-semibold text-cyan-700">
+                    Тази тема е важна за теб
+                  </p>
                 ) : null}
               </div>
-              {evidence ? (
-                <Button asChild variant="secondary" size="sm" className="mt-4">
-                  <Link href={`/parties/${party.slug}#${evidence.id}`}>
-                    Виж детайли
-                  </Link>
-                </Button>
-              ) : (
-                <p className="mt-4 text-sm font-semibold text-slate-500">
-                  Няма конкретно обещание за проверка по тази позиция.
-                </p>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </details>
   );
@@ -255,40 +407,82 @@ function ResultPartyCard({
 
 export function QuizExperience({ data }: { data: AppData }) {
   const [answers, setAnswers] = useState<Answers>({});
+  const [importance, setImportance] = useState<ImportanceAnswers>({});
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
   const hasLoadedSavedAnswers = useRef(false);
-
-  const answeredPolicies = getAnsweredPolicies(answers);
+  const questions = useMemo(() => getQuestions(data), [data]);
+  const currentQuestion = questions[currentIndex];
+  const answeredPolicies = getAnsweredPolicies(answers, importance);
   const answeredCount = answeredPolicies.length;
+  const progressPercent = questions.length
+    ? Math.round(((currentIndex + 1) / questions.length) * 100)
+    : 0;
 
   useEffect(() => {
     const storedAnswers = window.localStorage.getItem(STORAGE_KEY);
 
     if (!storedAnswers) {
       hasLoadedSavedAnswers.current = true;
-      return;
+      return undefined;
     }
 
+    let timeoutId = 0;
+
     try {
-      const parsedAnswers = JSON.parse(storedAnswers) as Answers;
-      window.requestAnimationFrame(() => {
+      const parsed = JSON.parse(storedAnswers) as unknown;
+      const parsedState =
+        parsed && typeof parsed === "object" ? (parsed as SavedQuizState) : {};
+      const parsedAnswers =
+        "answers" in parsedState
+          ? parsedState.answers ?? {}
+          : (parsedState as Answers);
+      const parsedImportance = Object.fromEntries(
+        Object.entries(parsedState.importance ?? {}).map(([policyId, value]) => [
+          policyId,
+          typeof value === "number" ? value > 2 : Boolean(value),
+        ]),
+      );
+      timeoutId = window.setTimeout(() => {
         hasLoadedSavedAnswers.current = true;
         setAnswers(parsedAnswers);
-      });
+        setImportance(parsedImportance);
+        setShowResults(Boolean(parsedState.submitted));
+      }, 0);
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
       hasLoadedSavedAnswers.current = true;
     }
+
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (!showResults) {
+      return;
+    }
+
+    resultsRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [showResults]);
 
   useEffect(() => {
     if (!hasLoadedSavedAnswers.current) {
       return;
     }
 
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
-  }, [answers]);
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ answers, importance, submitted: showResults }),
+    );
+  }, [answers, importance, showResults]);
 
   const ranking = useMemo(() => {
     return data.parties
@@ -296,8 +490,17 @@ export function QuizExperience({ data }: { data: AppData }) {
         party,
         ...scoreParty(data, answeredPolicies, data.commonPolicies, party.slug),
       }))
-      .sort((first, second) => second.match - first.match);
+      .sort(
+        (first, second) =>
+          second.match - first.match ||
+          second.comparableCount - first.comparableCount,
+      );
   }, [answeredPolicies, data]);
+
+  function goToQuestion(index: number) {
+    setCurrentIndex(Math.min(Math.max(index, 0), questions.length - 1));
+    setShowResults(false);
+  }
 
   function setAnswer(policyId: string, value: number) {
     setAnswers((current) => ({ ...current, [policyId]: value }));
@@ -313,10 +516,18 @@ export function QuizExperience({ data }: { data: AppData }) {
     setShowResults(false);
   }
 
-  function resetQuiz() {
-    setAnswers({});
+  function setPolicyImportance(policyId: string, value: boolean) {
+    setImportance((current) => ({ ...current, [policyId]: value }));
     setShowResults(false);
-    window.localStorage.removeItem(STORAGE_KEY);
+  }
+
+  function skipQuestion() {
+    if (!currentQuestion) {
+      return;
+    }
+
+    clearAnswer(currentQuestion.id);
+    goToQuestion(currentIndex + 1);
   }
 
   function submitQuiz() {
@@ -325,211 +536,195 @@ export function QuizExperience({ data }: { data: AppData }) {
     }
 
     setShowResults(true);
-    window.requestAnimationFrame(() => {
-      resultsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
   }
 
+  function resetQuiz() {
+    setAnswers({});
+    setImportance({});
+    setCurrentIndex(0);
+    setShowResults(false);
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
+
+  if (!currentQuestion) {
+    return (
+      <Card className="border-slate-200">
+        <CardContent className="p-6">
+          Няма въведени въпроси за теста.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const currentAnswer = answers[currentQuestion.id];
+  const isImportant = importance[currentQuestion.id] ?? false;
+  const topicPalette = getTopicPalette(currentQuestion.areaSlug);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-      <Card className="h-fit border-cyan-100">
-        <CardHeader>
-          <CardTitle>Отговори само на това, което има значение за теб.</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 rounded-lg bg-slate-50 p-4">
-            <div className="text-2xl font-bold">{answeredCount}</div>
-            <div className="text-sm font-medium text-slate-500">
-              отговорени позиции
+    <div className="grid gap-6">
+      <Card
+        className={cn(
+          "overflow-hidden border-cyan-100",
+          showResults && "hidden",
+        )}
+      >
+        <CardHeader className="border-b border-slate-100 bg-white">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-bold uppercase text-slate-500">
+                Въпрос {currentIndex + 1} от {questions.length}
+              </div>
+              <CardTitle className="mt-3 text-2xl">
+                Отговори само на темите, които имат значение за теб.
+              </CardTitle>
+            </div>
+            <div className="min-w-0 md:w-80">
+              <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase text-slate-500">
+                <span>{answeredCount} отговорени</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-slate-100">
+                <div
+                  className="h-2.5 rounded-full bg-cyan-600"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="mt-3">
+                <ProgressDots
+                  questions={questions}
+                  answers={answers}
+                  currentIndex={currentIndex}
+                  onSelect={goToQuestion}
+                />
+              </div>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <Button disabled={answeredCount === 0} onClick={submitQuiz}>
-              Покажи класиране
-              <Trophy className="h-4 w-4" aria-hidden="true" />
-            </Button>
-            <Button variant="secondary" onClick={resetQuiz}>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              Започни отначало
-            </Button>
+        </CardHeader>
+        <CardContent className="grid gap-5 p-5 sm:p-6">
+          <div
+            className={cn(
+              "rounded-lg border p-4",
+              topicPalette.border,
+              topicPalette.header,
+            )}
+          >
+            <h2 className="mt-4 wrap-break-word text-2xl font-bold leading-tight text-slate-950 sm:text-3xl">
+              {currentQuestion.title}
+            </h2>
+            <p className="mt-3 text-base leading-7 text-slate-700">
+              {currentQuestion.question}
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <AnswerButton
+                key={value}
+                value={value}
+                selectedValue={currentAnswer}
+                onSelect={(nextValue) => setAnswer(currentQuestion.id, nextValue)}
+              />
+            ))}
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={isImportant}
+              onChange={(event) =>
+                setPolicyImportance(currentQuestion.id, event.target.checked)
+              }
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-cyan-700"
+            />
+            <span>This topic is important to me</span>
+          </label>
+
+          <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={currentIndex === 0}
+                onClick={() => goToQuestion(currentIndex - 1)}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Назад
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={skipQuestion}
+              >
+                Пропусни
+              </Button>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="secondary"
+                aria-disabled={answeredCount === 0}
+                className={
+                  answeredCount === 0
+                    ? "pointer-events-none opacity-50"
+                    : undefined
+                }
+                onClick={submitQuiz}
+              >
+                Предай сега
+                <Trophy className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                disabled={currentIndex === questions.length - 1}
+                onClick={() => goToQuestion(currentIndex + 1)}
+              >
+                Следващ
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4">
-        {data.policyAreas.map((area) => {
-          const topicPalette = getTopicPalette(area.slug);
-          const policies = getCommonPoliciesForArea(data, area.slug);
-
-          return (
-            <details
-              key={area.slug}
-              className={`group rounded-lg border shadow-sm ${topicPalette.border} ${topicPalette.surface}`}
-            >
-              <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg p-5 transition-colors group-open:rounded-b-none ${topicPalette.header}`}>
-                <div>
-                  <div className="flex flex-wrap gap-2">
-                  </div>
-                  <Badge variant="neutral">{policies.length} теми</Badge>
-                  <h2 className="mt-3 text-xl font-bold">{area.name}</h2>
-                  <br></br>
-                </div>
-                <ChevronDown
-                  className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
-                  aria-hidden="true"
-                />
-              </summary>
-
-              <div className={`grid gap-3 border-t p-5 pt-0 ${topicPalette.border}`}>
-                {policies.map((policy) => {
-                  const answer = answers[policy.id];
-                  const hasAnswer = typeof answer === "number";
-
-                  return (
-                    <details
-                      key={policy.id}
-                      className="group/policy rounded-lg border border-slate-200 bg-white shadow-sm"
-                    >
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant={hasAnswer ? "green" : "amber"}>
-                              {hasAnswer ? "Отговорено" : "Неотговорено"}
-                            </Badge>
-                          </div>
-                          <h3 className="mt-3 text-lg font-bold">
-                            {policy.title}
-                          </h3>
-                          <p className="mt-1 text-sm leading-6 text-slate-600">
-                            {policy.question}
-                          </p>
-                        </div>
-                        <ChevronDown
-                          className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open/policy:rotate-180"
-                          aria-hidden="true"
-                        />
-                      </summary>
-                      <div className="border-t border-slate-100 p-5 pt-0">
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <span className="text-sm font-bold text-red-800">
-                              Не подкрепям
-                            </span>
-                            <span className="text-sm font-bold text-slate-500">
-                              Смесено
-                            </span>
-                            <span className="text-sm font-bold text-emerald-700">
-                              Подкрепям
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            step="1"
-                            value={answer ?? 3}
-                            onChange={(event) =>
-                              setAnswer(policy.id, Number(event.target.value))
-                            }
-                            className="h-3 w-full cursor-pointer appearance-none rounded-full accent-cyan-700"
-                            style={{
-                              background:
-                                "linear-gradient(90deg, #991b1b 0%, #fca5a5 25%, #cbd5e1 50%, #7dd3fc 75%, #1d4ed8 100%)",
-                            }}
-                            aria-label={`Отговор за ${policy.title}`}
-                          />
-                          <div className="mt-3 grid grid-cols-5 gap-2 text-center text-xs font-bold text-slate-500">
-                            {[1, 2, 3, 4, 5].map((level) => (
-                              <span
-                                key={level}
-                                className={
-                                  answer === level
-                                    ? "text-slate-950"
-                                    : undefined
-                                }
-                              >
-                                {level}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-xs font-medium text-slate-500">
-                            1 = никаква подкрепа, 3 = смесено/неутрално, 5 =
-                            пълна подкрепа.
-                          </p>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={!hasAnswer}
-                            onClick={() => clearAnswer(policy.id)}
-                          >
-                            <XCircle className="h-4 w-4" aria-hidden="true" />
-                            Не искам да отговарям
-                          </Button>
-                        </div>
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-              </details>
-            );
-          })}
-
-        <Card className="border-cyan-100">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-bold">Готов ли си?</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Отговорил си на {answeredCount} позиции. Можеш да видиш резултат
-                и после да редактираш отговорите си.
-              </p>
-            </div>
-            <Button disabled={answeredCount === 0} onClick={submitQuiz}>
-              Покажи класиране
-              <Trophy className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm leading-6 text-slate-600">
+          Можеш да предадеш теста рано, но резултатът става по-точен с повече
+          отговорени теми.
+        </p>
+        <Button type="button" variant="secondary" onClick={resetQuiz}>
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          Започни отначало
+        </Button>
       </div>
 
       {showResults ? (
         <section
           ref={resultsRef}
-          className="col-span-full mx-auto grid w-full max-w-5xl scroll-mt-24 gap-4"
+          className="grid scroll-mt-24 gap-4"
           aria-live="polite"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <Badge>Резултат</Badge>
-              <h2 className="mt-3 text-2xl font-bold">Най-близки партии</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Класирането използва само позициите, на които си отговорил.
-              </p>
-            </div>
-            <Button variant="secondary" onClick={resetQuiz}>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              Направи теста отново
-            </Button>
+          <div>
+            <h2 className="mt-3 text-2xl font-bold">Най-близки партии</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Съвпадението измерва близостта между твоите отговори и
+              въведените позиции на партиите. Важните за теб теми имат по-голяма
+              тежест.
+            </p>
           </div>
-          {ranking.map(({ party, match, comparableCount }) => (
-            <ResultPartyCard
-              key={party.slug}
-              data={data}
-              party={party}
-              match={match}
-              comparableCount={comparableCount}
-              answeredPolicies={answeredPolicies}
-            />
-          ))}
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            {ranking.map(({ party, match, comparableCount }) => (
+              <ResultPartyCard
+                key={party.slug}
+                data={data}
+                party={party}
+                match={match}
+                comparableCount={comparableCount}
+                answeredPolicies={answeredPolicies}
+              />
+            ))}
+          </div>
         </section>
       ) : null}
     </div>
   );
 }
-
