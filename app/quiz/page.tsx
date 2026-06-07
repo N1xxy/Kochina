@@ -23,13 +23,12 @@ export default async function QuizPage() {
 
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
-          <Badge>Тест</Badge>
           <h1 className="mt-4 max-w-3xl text-4xl font-bold">
-            Разбери кои партии са най-близо до твоите позиции.
+            Разбери кои партии са най-близо до твоите възгледи.
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            Отвори сферите, избери позициите, които те интересуват, и отговори
-            по скала от 1 до 5. Партиите се показват чак в резултатите.
+            Разгледай 24-те твърдения и отговори на тези, които те интересуват,
+            по скала от 1 до 5. След това ще получиш резултат, който показва най-приближените до теб партии.
           </p>
         </div>
       </section>
@@ -38,20 +37,12 @@ export default async function QuizPage() {
         <Card className="border-cyan-100">
           <CardHeader>
             <BarChart3 className="h-7 w-7 text-cyan-700" aria-hidden="true" />
-            <CardTitle>Как ще се смята резултатът</CardTitle>
+            <CardTitle>Как се смята резултатът</CardTitle>
             <CardDescription>
-              Сравняваме твоите отговори с позициите на всяка партия. Колкото
-              по-малка е разликата, толкова по-високо е съвпадението.
+              Сравняваме твоите отговори с възгледите на всяка партия. Колкото повече въпроси отговориш, толкова по-точен ще е резултатът.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/parties">
-                Виж партийните профили
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          </CardContent>
+          
         </Card>
       </section>
 

@@ -85,7 +85,7 @@ export default async function PartyPage({
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <HashOpenDetails />
       <SiteHeader />
-      <div className="sticky top-[73px] z-10 border-b border-slate-200 bg-slate-50/90 backdrop-blur">
+      <div className="sticky top-18.25 z-10 border-b border-slate-200 bg-slate-50/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <PartyMark party={party} />

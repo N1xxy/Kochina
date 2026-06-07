@@ -4,9 +4,12 @@ import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  title: "Template",
+  title: "Кочина",
   description:
-    "Сравнение на политически обещания, действия и източници.",
+    "Сравнение на политически обещания, действия и източници в България.",
+  icons: {
+    icon: "/kochina-raccoon-logo.png",
+  },
 };
 
 export default function RootLayout({

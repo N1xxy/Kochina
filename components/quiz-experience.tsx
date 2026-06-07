@@ -36,7 +36,7 @@ const scoreColors: Record<number, string> = {
 
 type Answers = Record<string, number | undefined>;
 
-const STORAGE_KEY = "template-quiz-answers";
+const STORAGE_KEY = "kochina-quiz-answers";
 
 function getAnsweredPolicies(answers: Answers) {
   return Object.entries(answers)
@@ -337,12 +337,7 @@ export function QuizExperience({ data }: { data: AppData }) {
     <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
       <Card className="h-fit border-cyan-100">
         <CardHeader>
-          <Badge>Интерактивен тест</Badge>
-          <CardTitle>Избери само позициите, които те интересуват</CardTitle>
-          <CardDescription>
-            Всяка позиция започва като неотговорена. Партийните позиции са скрити
-            до края, за да не влияят на отговорите.
-          </CardDescription>
+          <CardTitle>Отговори само на това, което има значение за теб.</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="mb-4 rounded-lg bg-slate-50 p-4">
@@ -377,17 +372,10 @@ export function QuizExperience({ data }: { data: AppData }) {
               <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg p-5 transition-colors group-open:rounded-b-none ${topicPalette.header}`}>
                 <div>
                   <div className="flex flex-wrap gap-2">
-                    <span
-                      className={`inline-flex w-fit items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${topicPalette.badge}`}
-                    >
-                      {area.name}
-                    </span>
-                    <Badge variant="neutral">{policies.length} позиции</Badge>
                   </div>
+                  <Badge variant="neutral">{policies.length} теми</Badge>
                   <h2 className="mt-3 text-xl font-bold">{area.name}</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {area.description}
-                  </p>
+                  <br></br>
                 </div>
                 <ChevronDown
                   className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
@@ -408,7 +396,6 @@ export function QuizExperience({ data }: { data: AppData }) {
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5">
                         <div className="min-w-0">
                           <div className="flex flex-wrap gap-2">
-                            <Badge variant="neutral">Обща позиция</Badge>
                             <Badge variant={hasAnswer ? "green" : "amber"}>
                               {hasAnswer ? "Отговорено" : "Неотговорено"}
                             </Badge>

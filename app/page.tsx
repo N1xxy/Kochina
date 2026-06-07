@@ -28,7 +28,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
           <div className="flex flex-col justify-center">
             <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-slate-950 sm:text-5xl">
-              Оформи политическите си предпочитания с Template.
+              Оформи политическите си предпочитания с Кочина.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
               Тук можеш да видиш дали думите на една партия отговарят на действията ѝ 
